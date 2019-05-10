@@ -41,7 +41,9 @@ public class EventController {
         event.update();
 
         Event createdEvent = eventRepository.save(event);
+
         URI createdUri = linkTo(EventController.class).slash(createdEvent.getId()).toUri();
-        return ResponseEntity.created(createdUri).body(createdEvent);
+        EventResource eventResource = new EventResource(event);
+        return ResponseEntity.created(createdUri).body(eventResource);
     }
 }
