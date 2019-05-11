@@ -74,14 +74,12 @@ public class EventControllerTests {
                 .andExpect(jsonPath("free").value(false))
                 .andExpect(jsonPath("offline").value(true))
                 .andExpect(jsonPath("eventStatus").value(EventStatus.DRAFT.name()))
-                .andExpect(jsonPath("_links.self").exists())
-                .andExpect(jsonPath("_links.query-events").exists())
-                .andExpect(jsonPath("_links.update-event").exists())
                 .andDo(document("create-event",
                         links(
                                 linkWithRel("self").description("link to self"),
                                 linkWithRel("query-events").description("link to query events"),
-                                linkWithRel("update-event").description("link to update an existing event")
+                                linkWithRel("update-event").description("link to update an existing event"),
+                                linkWithRel("profile").description("link to profile")
                         ),
                         requestHeaders(
                                 headerWithName(HttpHeaders.ACCEPT).description("Accept"),
@@ -104,6 +102,7 @@ public class EventControllerTests {
                                 headerWithName(HttpHeaders.CONTENT_TYPE).description("Content-Type")
                         ),
                         responseFields(
+                                fieldWithPath("id").description("id of new event"),
                                 fieldWithPath("name").description("name of new event"),
                                 fieldWithPath("description").description("description of new event"),
                                 fieldWithPath("beginEnrollmentDateTime").description("date time of begin enrollment of new event"),
@@ -114,14 +113,13 @@ public class EventControllerTests {
                                 fieldWithPath("basePrice").description("base price of new event"),
                                 fieldWithPath("maxPrice").description("max price of new event"),
                                 fieldWithPath("limitOfEnrollment").description("limit of enrollment of new event"),
-
-                                fieldWithPath("id").description("id of new event"),
                                 fieldWithPath("free").description("free of new event"),
                                 fieldWithPath("offline").description("offline of new event"),
                                 fieldWithPath("eventStatus").description("eventStatus of new event"),
                                 fieldWithPath("_links.self.href").description("link to self"),
                                 fieldWithPath("_links.query-events.href").description("link to query events"),
-                                fieldWithPath("_links.update-event.href").description("link to update an existing event")
+                                fieldWithPath("_links.update-event.href").description("link to update an existing event"),
+                                fieldWithPath("_links.profile.href").description("link to profile")
                         )
                 ))
         ;

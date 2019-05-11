@@ -14,5 +14,6 @@ public class EventResource extends Resource<Event> {
         add(linkTo(EventController.class).slash(event.getId()).withSelfRel());
         add(linkTo(EventController.class).slash(event.getId()).withRel("update-event"));
         add(linkTo(EventController.class).withRel("query-events"));
+        add(new Link("/docs/index.html#resources-events-create").withRel("profile"));
     }
 }
