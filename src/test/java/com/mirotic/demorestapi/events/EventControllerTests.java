@@ -241,13 +241,13 @@ public class EventControllerTests {
                 ));
     }
 
-    private void generateEvent(int index) {
+    private Event generateEvent(int index) {
         Event event = Event.builder()
                 .name("event" + index)
                 .description("test")
                 .build();
 
-        eventRepository.save(event);
+        return eventRepository.save(event);
     }
 
 }

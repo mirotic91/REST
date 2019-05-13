@@ -10,6 +10,7 @@ import org.springframework.hateoas.Link;
 import org.springframework.hateoas.MediaTypes;
 import org.springframework.hateoas.PagedResources;
 import org.springframework.hateoas.Resource;
+import org.springframework.hateoas.mvc.ControllerLinkBuilder;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.Errors;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -50,8 +51,13 @@ public class EventController {
 
         Event createdEvent = eventRepository.save(event);
 
-        URI createdUri = linkTo(EventController.class).slash(createdEvent.getId()).toUri();
+        ControllerLinkBuilder selfLinkBuilder = linkTo(EventController.class).slash(createdEvent.getId());
+        URI createdUri = selfLinkBuilder.toUri();
+
         EventResource eventResource = new EventResource(event);
+        eventResource.add(selfLinkBuilder.withRel("update-event"));
+        eventResource.add(linkTo(EventController.class).withRel("query-events"));
+        eventResource.add(new Link("/docs/index.html#resources-events-create").withRel("profile"));
         return ResponseEntity.created(createdUri).body(eventResource);
     }
 
