@@ -250,4 +250,47 @@ public class EventControllerTests {
         return eventRepository.save(event);
     }
 
+    @Test
+    @TestDescription("이벤트 하나 상세 조회하기")
+    public void getEvent() throws Exception {
+        Event event = generateEvent(111);
+
+        mockMvc.perform(get("/api/events/{id}", event.getId()))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("name").exists())
+                .andDo(document("get-event",
+                        links(
+                                linkWithRel("self").description("link to self"),
+                                linkWithRel("profile").description("link to profile")
+                        ),
+                        responseFields(
+                                fieldWithPath("id").description("id of event"),
+                                fieldWithPath("name").description("name of event"),
+                                fieldWithPath("description").description("description of event"),
+                                fieldWithPath("beginEnrollmentDateTime").description("date time of begin enrollment of event"),
+                                fieldWithPath("closeEnrollmentDateTime").description("date time of close enrollment of event"),
+                                fieldWithPath("beginEventDateTime").description("date time of begin event of event"),
+                                fieldWithPath("endEventDateTime").description("date time of end event of event"),
+                                fieldWithPath("location").description("location of event"),
+                                fieldWithPath("basePrice").description("base price of event"),
+                                fieldWithPath("maxPrice").description("max price of event"),
+                                fieldWithPath("limitOfEnrollment").description("limit of enrollment of event"),
+                                fieldWithPath("free").description("free of event"),
+                                fieldWithPath("offline").description("offline of event"),
+                                fieldWithPath("eventStatus").description("eventStatus of event"),
+                                fieldWithPath("_links.self.href").description("link to self"),
+                                fieldWithPath("_links.profile.href").description("link to profile")
+                        )
+                ));
+    }
+
+    @Test
+    @TestDescription("존재하지 않는 이벤트 조회의 경우 에러 발생")
+    public void getEvent_NotFound() throws Exception {
+        mockMvc.perform(get("/api/events/999"))
+                .andDo(print())
+                .andExpect(status().isNotFound());
+    }
+
 }
