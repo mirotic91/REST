@@ -16,6 +16,7 @@ import org.springframework.validation.Errors;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -80,12 +81,43 @@ public class EventController {
     public ResponseEntity getEvent(@PathVariable Integer id) {
         Optional<Event> optionalEvent = eventRepository.findById(id);
         if (optionalEvent.isEmpty()) {
-            return ResponseEntity.notFound().build();
+            return notFound();
         }
 
         Event event = optionalEvent.get();
         Resource<Event> eventResource = new EventResource(event);
         eventResource.add(new Link("/docs/index.html#resources-events-get").withRel("profile"));
+        return ResponseEntity.ok(eventResource);
+    }
+
+    private ResponseEntity notFound() {
+        return ResponseEntity.notFound().build();
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity updateEvent(@PathVariable Integer id, @RequestBody @Valid EventDto eventDto, Errors errors) {
+        Optional<Event> optionalEvent = eventRepository.findById(id);
+        if (optionalEvent.isEmpty()) {
+            return notFound();
+        }
+
+        if (errors.hasErrors()) {
+            return badRequest(errors);
+        }
+
+        eventValidator.validate(eventDto, errors);
+        if (errors.hasErrors()) {
+            return badRequest(errors);
+        }
+
+        Event originEvent = optionalEvent.get();
+        modelMapper.map(eventDto, originEvent);
+        originEvent.update();
+
+        Event updatedEvent = eventRepository.save(originEvent);
+
+        EventResource eventResource = new EventResource(updatedEvent);
+        eventResource.add(new Link("/docs/index.html#resources-events-update").withRel("profile"));
         return ResponseEntity.ok(eventResource);
     }
 

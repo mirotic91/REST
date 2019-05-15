@@ -5,6 +5,7 @@ import com.mirotic.demorestapi.common.RestDocsConfiguration;
 import com.mirotic.demorestapi.common.TestDescription;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.restdocs.AutoConfigureRestDocs;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -35,6 +36,7 @@ import static org.springframework.restdocs.request.RequestDocumentation.paramete
 import static org.springframework.restdocs.request.RequestDocumentation.requestParameters;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -53,6 +55,9 @@ public class EventControllerTests {
 
     @Autowired
     ObjectMapper objectMapper;
+
+    @Autowired
+    ModelMapper modelMapper;
 
     @Autowired
     EventRepository eventRepository;
@@ -245,6 +250,17 @@ public class EventControllerTests {
         Event event = Event.builder()
                 .name("event" + index)
                 .description("test")
+                .beginEnrollmentDateTime(LocalDateTime.of(2019, 5, 7, 12, 30))
+                .closeEnrollmentDateTime(LocalDateTime.of(2019, 5, 8, 12, 30))
+                .beginEventDateTime(LocalDateTime.of(2019, 5, 13, 12, 0))
+                .endEventDateTime(LocalDateTime.of(2019, 5, 17, 18, 0))
+                .basePrice(100)
+                .maxPrice(200)
+                .limitOfEnrollment(100)
+                .location("강남역 D2")
+                .offline(true)
+                .free(false)
+                .eventStatus(EventStatus.DRAFT)
                 .build();
 
         return eventRepository.save(event);
@@ -289,6 +305,112 @@ public class EventControllerTests {
     @TestDescription("존재하지 않는 이벤트 조회의 경우 에러 발생")
     public void getEvent_NotFound() throws Exception {
         mockMvc.perform(get("/api/events/999"))
+                .andDo(print())
+                .andExpect(status().isNotFound());
+    }
+
+
+    @Test
+    @TestDescription("정상적으로 수정하기")
+    public void updateEvent() throws Exception {
+        Event event = generateEvent(111);
+
+        EventDto eventDto = modelMapper.map(event, EventDto.class);
+        String requestName = "Spring REST API";
+        eventDto.setName(requestName);
+
+        mockMvc.perform(put("/api/events/{id}", event.getId())
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .accept(MediaTypes.HAL_JSON)
+                    .content(objectMapper.writeValueAsString(eventDto)))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("name").value(requestName))
+                .andExpect(jsonPath("_links.self").exists())
+                .andDo(document("update-event",
+                        links(
+                                linkWithRel("self").description("link to self"),
+                                linkWithRel("profile").description("link to profile")
+                        ),
+                        requestHeaders(
+                                headerWithName(HttpHeaders.ACCEPT).description("Accept"),
+                                headerWithName(HttpHeaders.CONTENT_TYPE).description("Content-Type")
+                        ),
+                        requestFields(
+                                fieldWithPath("name").description("name of event"),
+                                fieldWithPath("description").description("description of event"),
+                                fieldWithPath("beginEnrollmentDateTime").description("date time of begin enrollment of event"),
+                                fieldWithPath("closeEnrollmentDateTime").description("date time of close enrollment of event"),
+                                fieldWithPath("beginEventDateTime").description("date time of begin event of event"),
+                                fieldWithPath("endEventDateTime").description("date time of end event of event"),
+                                fieldWithPath("location").description("location of event"),
+                                fieldWithPath("basePrice").description("base price of event"),
+                                fieldWithPath("maxPrice").description("max price of event"),
+                                fieldWithPath("limitOfEnrollment").description("limit of enrollment of event")
+                        ),
+                        responseFields(
+                                fieldWithPath("id").description("id of event"),
+                                fieldWithPath("name").description("name of event"),
+                                fieldWithPath("description").description("description of event"),
+                                fieldWithPath("beginEnrollmentDateTime").description("date time of begin enrollment of event"),
+                                fieldWithPath("closeEnrollmentDateTime").description("date time of close enrollment of event"),
+                                fieldWithPath("beginEventDateTime").description("date time of begin event of event"),
+                                fieldWithPath("endEventDateTime").description("date time of end event of event"),
+                                fieldWithPath("location").description("location of event"),
+                                fieldWithPath("basePrice").description("base price of event"),
+                                fieldWithPath("maxPrice").description("max price of event"),
+                                fieldWithPath("limitOfEnrollment").description("limit of enrollment of event"),
+                                fieldWithPath("free").description("free of event"),
+                                fieldWithPath("offline").description("offline of event"),
+                                fieldWithPath("eventStatus").description("eventStatus of event"),
+                                fieldWithPath("_links.self.href").description("link to self"),
+                                fieldWithPath("_links.profile.href").description("link to profile")
+                        )
+                ));
+    }
+
+    @Test
+    @TestDescription("입력값이 비어있는 경우 에러 발생")
+    public void updateEvent_BadRequest_EmptyInput() throws Exception {
+        Event event = generateEvent(111);
+
+        EventDto eventDto = new EventDto();
+
+        mockMvc.perform(put("/api/events/{id}", event.getId())
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .accept(MediaTypes.HAL_JSON)
+                    .content(objectMapper.writeValueAsString(eventDto)))
+                .andDo(print())
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @TestDescription("입력값이 잘못된 경우 에러 발생")
+    public void updateEvent_BadRequest_WrongInput() throws Exception {
+        Event event = generateEvent(111);
+
+        EventDto eventDto = modelMapper.map(event, EventDto.class);
+        eventDto.setBeginEventDateTime(LocalDateTime.of(2019, 7, 7, 12, 30));
+
+        mockMvc.perform(put("/api/events/{id}", event.getId())
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .accept(MediaTypes.HAL_JSON)
+                    .content(objectMapper.writeValueAsString(eventDto)))
+                .andDo(print())
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @TestDescription("존재하지 않는 이벤트 수정의 경우 에러 발생")
+    public void updateEvent_NotFound() throws Exception {
+        Event event = generateEvent(111);
+
+        EventDto eventDto = modelMapper.map(event, EventDto.class);
+
+        mockMvc.perform(put("/api/events/999")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .accept(MediaTypes.HAL_JSON)
+                    .content(objectMapper.writeValueAsString(eventDto)))
                 .andDo(print())
                 .andExpect(status().isNotFound());
     }
