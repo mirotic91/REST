@@ -1,5 +1,6 @@
 package com.mirotic.demorestapi.events;
 
+import com.mirotic.demorestapi.accounts.Account;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.EqualsAndHashCode;
@@ -12,6 +13,7 @@ import javax.persistence.EnumType;
 import javax.persistence.Enumerated;
 import javax.persistence.GeneratedValue;
 import javax.persistence.Id;
+import javax.persistence.ManyToOne;
 import java.time.LocalDateTime;
 
 @Entity
@@ -48,6 +50,9 @@ public class Event {
     private boolean offline;
 
     private boolean free;
+
+    @ManyToOne
+    private Account manager;
 
     @Enumerated(EnumType.STRING)
     private EventStatus eventStatus = EventStatus.DRAFT;
