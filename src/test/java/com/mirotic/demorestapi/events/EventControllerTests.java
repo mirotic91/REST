@@ -1,23 +1,13 @@
 package com.mirotic.demorestapi.events;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.mirotic.demorestapi.common.RestDocsConfiguration;
+import com.mirotic.demorestapi.common.BaseControllerTests;
 import com.mirotic.demorestapi.common.TestDescription;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.restdocs.AutoConfigureRestDocs;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.context.annotation.Import;
 import org.springframework.hateoas.MediaTypes;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.restdocs.payload.JsonFieldType;
-import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.junit4.SpringRunner;
-import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.LocalDateTime;
 import java.util.stream.IntStream;
@@ -29,7 +19,6 @@ import static org.springframework.restdocs.hypermedia.HypermediaDocumentation.li
 import static org.springframework.restdocs.hypermedia.HypermediaDocumentation.links;
 import static org.springframework.restdocs.mockmvc.MockMvcRestDocumentation.document;
 import static org.springframework.restdocs.payload.PayloadDocumentation.fieldWithPath;
-import static org.springframework.restdocs.payload.PayloadDocumentation.relaxedResponseFields;
 import static org.springframework.restdocs.payload.PayloadDocumentation.requestFields;
 import static org.springframework.restdocs.payload.PayloadDocumentation.responseFields;
 import static org.springframework.restdocs.request.RequestDocumentation.parameterWithName;
@@ -42,28 +31,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@RunWith(SpringRunner.class)
-@SpringBootTest
-@AutoConfigureMockMvc
-@AutoConfigureRestDocs
-@Import(RestDocsConfiguration.class)
-@ActiveProfiles("test")
-public class EventControllerTests {
-
-    @Autowired
-    MockMvc mockMvc;
-
-    @Autowired
-    ObjectMapper objectMapper;
-
-    @Autowired
-    ModelMapper modelMapper;
+public class EventControllerTests extends BaseControllerTests {
 
     @Autowired
     EventRepository eventRepository;
 
     @Test
-    @TestDescription("정상적으로 생성")
+    @TestDescription("이벤트 정상적으로 생성")
     public void createEvent() throws Exception {
         EventDto eventDto = EventDto.builder()
                 .name("Spring")
@@ -142,7 +116,7 @@ public class EventControllerTests {
     }
 
     @Test
-    @TestDescription("요구되지 않는 파라미터로 요청시 에러 발생")
+    @TestDescription("요구되지 않는 파라미터로 이벤트 생성 요청시 에러 발생")
     public void createEvent_BadRequest_UnknownProperties() throws Exception {
         Event event = Event.builder()
                 .id(111)
@@ -169,7 +143,7 @@ public class EventControllerTests {
     }
 
     @Test
-    @TestDescription("입력 값이 비어있는 경우 에러 발생")
+    @TestDescription("이벤트 생성시 입력 값이 비어있는 경우 에러 발생")
     public void createEvent_BadRequest_EmptyInput() throws Exception {
         EventDto eventDto = EventDto.builder()
                 .build();
@@ -183,7 +157,7 @@ public class EventControllerTests {
     }
 
     @Test
-    @TestDescription("입력 값이 잘못된 경우 에러 발생")
+    @TestDescription("이벤트 생성시 입력 값이 잘못된 경우 에러 발생")
     public void createEvent_BadRequest_WrongInput() throws Exception {
         EventDto eventDto = EventDto.builder()
                 .name("Spring")
@@ -222,7 +196,6 @@ public class EventControllerTests {
                 .andDo(print())
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("page").exists())
-                .andExpect(jsonPath("_embedded.eventList[0]._links.self").exists())
                 .andDo(document("get-events",
                         links(
                                 linkWithRel("self").description("link to self"),
@@ -237,11 +210,32 @@ public class EventControllerTests {
                                 parameterWithName("size").description("size of the page to retrieve, default 10").optional(),
                                 parameterWithName("sort").description("sort of the page to retrieve, default id desc").optional()
                         ),
-                        relaxedResponseFields(
+                        responseFields(
                                 fieldWithPath("page.number").type(JsonFieldType.NUMBER).description("The number of this page"),
                                 fieldWithPath("page.size").type(JsonFieldType.NUMBER).description("The size of this page"),
                                 fieldWithPath("page.totalPages").type(JsonFieldType.NUMBER).description("The total number of pages"),
-                                fieldWithPath("page.totalElements").type(JsonFieldType.NUMBER).description("The total number of results")
+                                fieldWithPath("page.totalElements").type(JsonFieldType.NUMBER).description("The total number of results"),
+                                fieldWithPath("_embedded.eventList[].id").description("id of event"),
+                                fieldWithPath("_embedded.eventList[].name").description("name of event"),
+                                fieldWithPath("_embedded.eventList[].description").description("description of event"),
+                                fieldWithPath("_embedded.eventList[].beginEnrollmentDateTime").description("date time of begin enrollment of event"),
+                                fieldWithPath("_embedded.eventList[].closeEnrollmentDateTime").description("date time of close enrollment of event"),
+                                fieldWithPath("_embedded.eventList[].beginEventDateTime").description("date time of begin event of event"),
+                                fieldWithPath("_embedded.eventList[].endEventDateTime").description("date time of end event of event"),
+                                fieldWithPath("_embedded.eventList[].location").description("location of event"),
+                                fieldWithPath("_embedded.eventList[].basePrice").description("base price of event"),
+                                fieldWithPath("_embedded.eventList[].maxPrice").description("max price of event"),
+                                fieldWithPath("_embedded.eventList[].limitOfEnrollment").description("limit of enrollment of event"),
+                                fieldWithPath("_embedded.eventList[].free").description("free of event"),
+                                fieldWithPath("_embedded.eventList[].offline").description("offline of event"),
+                                fieldWithPath("_embedded.eventList[].eventStatus").description("eventStatus of event"),
+                                fieldWithPath("_embedded.eventList[]._links.self.href").description("link to self"),
+                                fieldWithPath("_links.self.href").description("link to self"),
+                                fieldWithPath("_links.profile.href").description("link to profile"),
+                                fieldWithPath("_links.first.href").description("link to first page"),
+                                fieldWithPath("_links.last.href").description("link to last page"),
+                                fieldWithPath("_links.prev.href").description("link to prev page"),
+                                fieldWithPath("_links.next.href").description("link to next page")
                         )
                 ));
     }
@@ -311,7 +305,7 @@ public class EventControllerTests {
 
 
     @Test
-    @TestDescription("정상적으로 수정하기")
+    @TestDescription("정상적으로 이벤트 수정")
     public void updateEvent() throws Exception {
         Event event = generateEvent(111);
 
@@ -370,7 +364,7 @@ public class EventControllerTests {
     }
 
     @Test
-    @TestDescription("입력값이 비어있는 경우 에러 발생")
+    @TestDescription("이벤트 수정시 입력값이 비어있는 경우 에러 발생")
     public void updateEvent_BadRequest_EmptyInput() throws Exception {
         Event event = generateEvent(111);
 
@@ -385,7 +379,7 @@ public class EventControllerTests {
     }
 
     @Test
-    @TestDescription("입력값이 잘못된 경우 에러 발생")
+    @TestDescription("이벤트 수정시 입력값이 잘못된 경우 에러 발생")
     public void updateEvent_BadRequest_WrongInput() throws Exception {
         Event event = generateEvent(111);
 
