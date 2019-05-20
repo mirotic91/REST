@@ -17,6 +17,9 @@ import java.util.Set;
 @Configuration
 public class AppConfig {
 
+    @Autowired
+    AppProperties appProperties;
+
     @Bean
     public ModelMapper modelMapper() {
         return new ModelMapper();
@@ -36,13 +39,21 @@ public class AppConfig {
 
             @Override
             public void run(ApplicationArguments args) {
-                Account account = Account.builder()
-                        .email("sample@email.com")
-                        .password("123123")
-                        .roles(Set.of(AccountRole.ADMIN, AccountRole.USER))
+                Account admin = Account.builder()
+                        .email(appProperties.getAdminUsername())
+                        .password(appProperties.getAdminPassword())
+                        .roles(Set.of(AccountRole.ADMIN))
                         .build();
 
-                accountService.save(account);
+                accountService.save(admin);
+
+                Account user = Account.builder()
+                        .email(appProperties.getUserUsername())
+                        .password(appProperties.getUserPassword())
+                        .roles(Set.of(AccountRole.USER))
+                        .build();
+
+                accountService.save(user);
             }
         };
     }
