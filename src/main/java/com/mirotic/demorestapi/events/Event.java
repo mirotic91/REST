@@ -67,4 +67,8 @@ public class Event {
         }
     }
 
+    public boolean isManager(Account currentUser) {
+        return this.manager != null && this.manager.equals(currentUser);
+    }
+
 }

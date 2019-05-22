@@ -6,6 +6,7 @@ import com.mirotic.demorestapi.accounts.AccountRole;
 import com.mirotic.demorestapi.accounts.AccountService;
 import com.mirotic.demorestapi.common.BaseControllerTests;
 import com.mirotic.demorestapi.common.TestDescription;
+import com.mirotic.demorestapi.configs.AppProperties;
 import org.junit.Before;
 import org.junit.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -14,7 +15,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.restdocs.payload.JsonFieldType;
 import org.springframework.security.oauth2.common.util.Jackson2JsonParser;
-import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.test.web.servlet.ResultActions;
 
 import java.time.LocalDateTime;
 import java.util.Set;
@@ -51,6 +52,9 @@ public class EventControllerTests extends BaseControllerTests {
     @Autowired
     AccountService accountService;
 
+    @Autowired
+    AppProperties appProperties;
+
     @Before
     public void setUp() {
         eventRepository.deleteAll();
@@ -58,32 +62,37 @@ public class EventControllerTests extends BaseControllerTests {
     }
 
     private String getBearerToken() throws Exception {
-        return "Bearer " + getAccessToken();
+        return getBearerToken(true);
     }
 
-    private String getAccessToken() throws Exception {
-        String clientId = "application";
-        String clientPassword = "password";
+    private String getBearerToken(boolean needToCreateAccount) throws Exception {
+        return "Bearer " + getAccessToken(needToCreateAccount);
+    }
 
-        String username = "jonguk@email.com";
-        String password = "123123";
-        Account account = Account.builder()
-                .email(username)
-                .password(password)
-                .roles(Set.of(AccountRole.ADMIN, AccountRole.USER))
-                .build();
-        accountService.save(account);
+    private String getAccessToken(boolean needToCreateAccount) throws Exception {
+        if (needToCreateAccount) {
+            createAccount();
+        }
 
-        MvcResult result = mockMvc.perform(post("/oauth/token")
-                .with(httpBasic(clientId, clientPassword))
-                .param("username", username)
-                .param("password", password)
-                .param("grant_type", "password"))
-                .andReturn();
+        ResultActions perform = mockMvc.perform(post("/oauth/token")
+                .with(httpBasic(appProperties.getClientId(), appProperties.getClientSecret()))
+                .param("username", appProperties.getAdminUsername())
+                .param("password", appProperties.getAdminPassword())
+                .param("grant_type", "password"));
 
-        String responseBody = result.getResponse().getContentAsString();
+        String responseBody = perform.andReturn().getResponse().getContentAsString();
         Jackson2JsonParser parser = new Jackson2JsonParser();
         return parser.parseMap(responseBody).get("access_token").toString();
+    }
+
+    private Account createAccount() {
+        Account account = Account.builder()
+                .email(appProperties.getAdminUsername())
+                .password(appProperties.getAdminPassword())
+                .roles(Set.of(AccountRole.ADMIN, AccountRole.USER))
+                .build();
+
+        return accountService.save(account);
     }
 
     @Test
@@ -165,6 +174,31 @@ public class EventControllerTests extends BaseControllerTests {
                         )
                 ))
         ;
+    }
+
+    @Test
+    @TestDescription("미인증 유저가 이벤트 생성시 에러 발생")
+    public void createEvent_anonymous() throws Exception {
+        EventDto eventDto = EventDto.builder()
+                .name("Spring")
+                .description("REST API")
+                .beginEnrollmentDateTime(LocalDateTime.of(2019, 5, 7, 12, 30))
+                .closeEnrollmentDateTime(LocalDateTime.of(2019, 5, 8, 12, 30))
+                .beginEventDateTime(LocalDateTime.of(2019, 5, 13, 12, 0))
+                .endEventDateTime(LocalDateTime.of(2019, 5, 17, 18, 0))
+                .basePrice(100)
+                .maxPrice(200)
+                .limitOfEnrollment(100)
+                .location("강남역 D2")
+                .build();
+
+        mockMvc.perform(post("/api/events/")
+                .contentType(MediaType.APPLICATION_JSON)
+                .accept(MediaTypes.HAL_JSON)
+                .content(objectMapper.writeValueAsString(eventDto))
+        )
+                .andDo(print())
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -298,8 +332,35 @@ public class EventControllerTests extends BaseControllerTests {
                 ));
     }
 
+    @Test
+    @TestDescription("인증된 유저로 이벤트 목록 조회하기")
+    public void queryEvents_authenticated() throws Exception {
+        IntStream.range(0, 30).forEach(this::generateEvent);
+
+        mockMvc.perform(get("/api/events")
+                .header(HttpHeaders.AUTHORIZATION, getBearerToken())
+                .param("page", "1")
+                .param("size", "10")
+                .param("sort", "name,DESC")
+        )
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("_links.create-event").exists());
+    }
+
     private Event generateEvent(int index) {
-        Event event = Event.builder()
+        Event event = buildEvent(index);
+        return eventRepository.save(event);
+    }
+
+    private Event generateEvent(int index, Account account) {
+        Event event = buildEvent(index);
+        event.setManager(account);
+        return eventRepository.save(event);
+    }
+
+    private Event buildEvent(int index) {
+        return Event.builder()
                 .name("event" + index)
                 .description("test")
                 .beginEnrollmentDateTime(LocalDateTime.of(2019, 5, 7, 12, 30))
@@ -314,14 +375,13 @@ public class EventControllerTests extends BaseControllerTests {
                 .free(false)
                 .eventStatus(EventStatus.DRAFT)
                 .build();
-
-        return eventRepository.save(event);
     }
 
     @Test
     @TestDescription("이벤트 하나 상세 조회하기")
     public void getEvent() throws Exception {
-        Event event = generateEvent(111);
+        Account account = createAccount();
+        Event event = generateEvent(111, account);
 
         mockMvc.perform(get("/api/events/{id}", event.getId()))
                 .andDo(print())
@@ -354,6 +414,20 @@ public class EventControllerTests extends BaseControllerTests {
     }
 
     @Test
+    @TestDescription("본인이 작성한 이벤트 상세 조회하기")
+    public void getEvent_Self() throws Exception {
+        Account account = createAccount();
+        Event event = generateEvent(111, account);
+
+        mockMvc.perform(get("/api/events/{id}", event.getId())
+                .header(HttpHeaders.AUTHORIZATION, getBearerToken(false))
+        )
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("_links.update-event").exists());
+    }
+
+    @Test
     @TestDescription("존재하지 않는 이벤트 조회의 경우 에러 발생")
     public void getEvent_NotFound() throws Exception {
         mockMvc.perform(get("/api/events/999"))
@@ -361,18 +435,18 @@ public class EventControllerTests extends BaseControllerTests {
                 .andExpect(status().isNotFound());
     }
 
-
     @Test
     @TestDescription("정상적으로 이벤트 수정")
     public void updateEvent() throws Exception {
-        Event event = generateEvent(111);
+        Account account = createAccount();
+        Event event = generateEvent(111, account);
 
         EventDto eventDto = modelMapper.map(event, EventDto.class);
         String requestName = "Spring REST API";
         eventDto.setName(requestName);
 
         mockMvc.perform(put("/api/events/{id}", event.getId())
-                .header(HttpHeaders.AUTHORIZATION, getBearerToken())
+                .header(HttpHeaders.AUTHORIZATION, getBearerToken(false))
                 .contentType(MediaType.APPLICATION_JSON)
                 .accept(MediaTypes.HAL_JSON)
                 .content(objectMapper.writeValueAsString(eventDto))
