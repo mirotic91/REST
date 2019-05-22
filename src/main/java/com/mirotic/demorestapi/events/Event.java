@@ -1,6 +1,8 @@
 package com.mirotic.demorestapi.events;
 
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.mirotic.demorestapi.accounts.Account;
+import com.mirotic.demorestapi.accounts.AccountSerializer;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.EqualsAndHashCode;
@@ -52,6 +54,7 @@ public class Event {
     private boolean free;
 
     @ManyToOne
+    @JsonSerialize(using = AccountSerializer.class)
     private Account manager;
 
     @Enumerated(EnumType.STRING)
